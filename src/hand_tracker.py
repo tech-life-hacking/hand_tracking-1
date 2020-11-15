@@ -145,8 +145,10 @@ class HandTracker():
         # Pick the best bounding box with non maximum suppression
         # the boxes must be moved by the corresponding anchor first
         moved_candidate_detect = candidate_detect.copy()
-        moved_candidate_detect[:, :2] = candidate_detect[:, :2] + (candidate_anchors[:, :2] * 256)
-        box_ids = non_max_suppression_fast(moved_candidate_detect[:, :4], probabilities)
+        moved_candidate_detect[:, :2] = candidate_detect[:,
+                                                         :2] + (candidate_anchors[:, :2] * 256)
+        box_ids = non_max_suppression_fast(
+            moved_candidate_detect[:, :4], probabilities)
 
         # Pick the first detected hand. Could be adapted for multi hand recognition
         # print(box_ids1)
@@ -158,7 +160,8 @@ class HandTracker():
         dx, dy, w, h = candidate_detect[box_ids1, :4]
         center_wo_offst = candidate_anchors[box_ids1, :2] * 256
         # 7 initial keypoints
-        keypoints = center_wo_offst + candidate_detect[box_ids1, 4:].reshape(-1, 2)
+        keypoints = center_wo_offst + \
+            candidate_detect[box_ids1, 4:].reshape(-1, 2)
         side = max(w, h) * self.box_enlarge
         # now we need to move and rotate the detected hand for it to occupy a
         # 256x256 square
@@ -214,21 +217,24 @@ class HandTracker():
         box_orig = (self._target_box @ Minv.T)[:, :2]
         kp_orig -= pad[::-1]
         box_orig -= pad[::-1]
-        return kp_orig, box_orig
+        # return kp_orig, box_orig
+        return kp_orig, box_orig, joints
 
     def __call__(self, img):
         img_pad, img_norm, pad = self.preprocess_img(img)
         source, keypoints, _ = self.detect_hand(img_norm, 0)  # Hand One
         if source is None:
-            return None, None, None, None
+            return None, None, None, None, None, None
         # calculating transformation from img_pad coords
         # to img_landmark coords (cropped hand image)
         scale = max(img.shape) / 256
-        kp_orig, box_orig = self.generate_orig(scale, source, img_pad, img_norm, pad)
+        kp_orig, box_orig, joints = self.generate_orig(
+            scale, source, img_pad, img_norm, pad)
 
         source2, keypoints2, _ = self.detect_hand(img_norm, 1)  # Hand two
         if source2 is None:
-            return kp_orig, None, box_orig, None
-        kp_orig2, box_orig2 = self.generate_orig(scale, source2, img_pad, img_norm, pad)
+            return kp_orig, None, box_orig, None, joints, None
+        kp_orig2, box_orig2, joints2 = self.generate_orig(
+            scale, source2, img_pad, img_norm, pad)
 
-        return kp_orig, kp_orig2, box_orig, box_orig2
+        return kp_orig, kp_orig2, box_orig, box_orig2, joints, joints2
